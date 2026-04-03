@@ -9,22 +9,27 @@ import React, {
   useRef,
   Suspense,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   PatientData,
   PatientRealTimeState,
   PatientStatus,
 } from "@/interface/patient";
 import { supabase } from "@/lib/supabase";
-import { DEFAULT_PATIENT_DATA, PATIENT_STATUS } from "@/const/patient";
+import {
+  DEFAULT_PATIENT_DATA,
+  PATIENT_STATUS,
+  SESSION_EXPIRY_DAYS,
+} from "@/const/patient";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface PatientContextType {
   patientState: PatientRealTimeState;
   allPatients: (PatientRealTimeState & { isOnline?: boolean })[];
-  updatePatientData: (data: Partial<PatientData>) => void;
+  updatePatientData: (data: Partial<PatientData>, fieldName?: string) => void;
   updateStatus: (status: PatientStatus) => void;
   submitPatientData: () => void;
+  startNewSession: () => void;
   error: string | null;
 }
 
@@ -34,6 +39,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   const [patientState, setPatientState] = useState<PatientRealTimeState>({
@@ -51,20 +57,35 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  // Helper to check if session is expired
+  const isSessionExpired = (lastUpdated: string) => {
+    if (SESSION_EXPIRY_DAYS === null) return false;
+    const expiryMs = SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    const diff = new Date().getTime() - new Date(lastUpdated).getTime();
+    return diff > expiryMs;
+  };
+
+  // 1. Session ID Management & Data Recovery
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    let sid = urlParams.get("id");
 
-    const init = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      let sid = urlParams.get("id");
-
-      if (!sid && pathname === "/patient") {
-        sid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
-        window.history.replaceState(
-          null,
-          "",
-          `${window.location.pathname}?id=${sid}`,
-        );
+    const initialize = async () => {
+      // Logic to find the best SID
+      if (!sid) {
+        sid = sessionStorage.getItem("current_sid");
+        if (!sid && pathname === "/patient") {
+          sid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
+          sessionStorage.setItem("current_sid", sid);
+        }
+        if (sid) {
+          window.history.replaceState(
+            null,
+            "",
+            `${window.location.pathname}?id=${sid}`,
+          );
+        }
       }
 
       if (sid) {
@@ -74,7 +95,17 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
           .select("*")
           .eq("session_id", sid)
           .maybeSingle();
+
         if (data) {
+          // CHECK EXPIRATION
+          if (isSessionExpired(data.last_updated)) {
+            console.log("Session expired, starting fresh.");
+            // If expired, clear and let it generate a new one on next cycle or wait
+            sessionStorage.removeItem("current_sid");
+            window.location.href = "/patient";
+            return;
+          }
+
           setPatientState({
             sessionId: data.session_id,
             patientData: data.patient_data as PatientData,
@@ -84,42 +115,71 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     };
-    init();
+
+    initialize();
   }, [pathname]);
 
   useEffect(() => {
-    if (!patientState.sessionId && pathname !== "/staff-view") return;
+    const sid = patientState.sessionId || "staff-monitor";
 
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-    }
+    supabase
+      .from("patients")
+      .select("*")
+      .order("last_updated", { ascending: false })
+      .then(({ data }) => {
+        if (data)
+          setAllPatients(
+            data.map((item) => ({
+              sessionId: item.session_id,
+              patientData: item.patient_data as PatientData,
+              status: item.status as PatientStatus,
+              lastUpdated: item.last_updated,
+              lastChangedField: item.last_changed_field,
+            })),
+          );
+      });
 
-    const sid = patientState.sessionId || "staff-session";
-    const channel = supabase.channel("hospital-main-hub", {
+    const channel = supabase.channel("hospital-main-v13", {
       config: { presence: { key: sid } },
     });
 
     channel
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        setAllPatients((prev) => {
+          const idx = prev.findIndex((p) => p.sessionId === payload.sessionId);
+          if (idx !== -1) {
+            const upd = [...prev];
+            upd[idx] = { ...upd[idx], ...payload };
+            return upd;
+          }
+          return [payload, ...prev];
+        });
+      })
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "patients" },
         (payload) => {
-          setAllPatients((prev) => {
-            if (payload.eventType === "DELETE")
-              return prev.filter(
+          if (payload.eventType === "DELETE") {
+            setAllPatients((prev) =>
+              prev.filter(
                 (p) => p.sessionId !== (payload.old as any).session_id,
-              );
-            const newData = payload.new as any;
-            const mapped: PatientRealTimeState = {
-              sessionId: newData.session_id,
-              patientData: newData.patient_data as PatientData,
-              status: newData.status as PatientStatus,
-              lastUpdated: newData.last_updated,
-            };
+              ),
+            );
+            return;
+          }
+          const newData = payload.new as any;
+          const mapped = {
+            sessionId: newData.session_id,
+            patientData: newData.patient_data as PatientData,
+            status: newData.status as PatientStatus,
+            lastUpdated: newData.last_updated,
+            lastChangedField: newData.last_changed_field,
+          };
+          setAllPatients((prev) => {
             const idx = prev.findIndex((p) => p.sessionId === mapped.sessionId);
             if (idx !== -1) {
               const upd = [...prev];
-              upd[idx] = mapped;
+              upd[idx] = { ...upd[idx], ...mapped };
               return upd;
             }
             return [mapped, ...prev];
@@ -127,51 +187,33 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         },
       )
       .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        const onlineIds = new Set(Object.keys(state));
-        setOnlineUsers(onlineIds);
+        setOnlineUsers(new Set(Object.keys(channel.presenceState())));
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          // ONLY Track if on /patient page
-          if (pathname === "/patient" && patientState.sessionId) {
-            await channel.track({
-              online_at: new Date().toISOString(),
-              user_agent: window.navigator.userAgent,
-            });
-          }
+        if (
+          status === "SUBSCRIBED" &&
+          pathname === "/patient" &&
+          patientState.sessionId
+        ) {
+          await channel.track({ online_at: new Date().toISOString() });
         }
       });
 
     channelRef.current = channel;
-
-    const fetchInitial = async () => {
-      const { data } = await supabase
-        .from("patients")
-        .select("*")
-        .order("last_updated", { ascending: false });
-      if (data)
-        setAllPatients(
-          data.map((item) => ({
-            sessionId: item.session_id,
-            patientData: item.patient_data as PatientData,
-            status: item.status as PatientStatus,
-            lastUpdated: item.last_updated,
-          })),
-        );
-    };
-    fetchInitial();
-
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [patientState.sessionId, pathname]);
 
-  const syncToSupabase = useCallback(async (state: PatientRealTimeState) => {
-    if (!state.sessionId) return;
+  const syncChanges = useCallback(async (state: PatientRealTimeState) => {
+    if (!state.sessionId || !channelRef.current) return;
+
+    channelRef.current.send({
+      type: "broadcast",
+      event: "typing",
+      payload: state,
+    });
+
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
       try {
@@ -181,29 +223,31 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
             patient_data: state.patientData,
             status: state.status,
             last_updated: new Date().toISOString(),
+            last_changed_field: state.lastChangedField,
           },
           { onConflict: "session_id" },
         );
       } catch (err: any) {
         setError(`Sync error: ${err.message}`);
       }
-    }, 300);
+    }, 500);
   }, []);
 
   const updatePatientData = useCallback(
-    (data: Partial<PatientData>) => {
+    (data: Partial<PatientData>, fieldName?: string) => {
       setPatientState((prev) => {
         const newState = {
           ...prev,
           patientData: { ...prev.patientData, ...data },
           status: PATIENT_STATUS.FILLING,
           lastUpdated: new Date().toISOString(),
+          lastChangedField: fieldName,
         };
-        syncToSupabase(newState);
+        syncChanges(newState);
         return newState;
       });
     },
-    [syncToSupabase],
+    [syncChanges],
   );
 
   const updateStatus = useCallback(
@@ -214,11 +258,11 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
           status,
           lastUpdated: new Date().toISOString(),
         };
-        syncToSupabase(newState);
+        syncChanges(newState);
         return newState;
       });
     },
-    [syncToSupabase],
+    [syncChanges],
   );
 
   const submitPatientData = useCallback(() => {
@@ -227,11 +271,19 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         ...prev,
         status: PATIENT_STATUS.SUBMITTED,
         lastUpdated: new Date().toISOString(),
+        lastChangedField: undefined,
       };
-      syncToSupabase(newState);
+      syncChanges(newState);
       return newState;
     });
-  }, [syncToSupabase]);
+  }, [syncChanges]);
+
+  const startNewSession = useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("current_sid");
+      window.location.href = "/patient";
+    }
+  }, []);
 
   return (
     <PatientContext.Provider
@@ -244,6 +296,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         updatePatientData,
         updateStatus,
         submitPatientData,
+        startNewSession,
         error,
       }}
     >
@@ -259,7 +312,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({
     <Suspense
       fallback={
         <div className="flex items-center justify-center h-screen bg-white text-blue-600 font-bold">
-          Connecting...
+          Connecting to Health Services...
         </div>
       }
     >
