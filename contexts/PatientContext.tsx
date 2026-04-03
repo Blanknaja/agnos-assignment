@@ -14,14 +14,13 @@ import {
   PatientData,
   PatientRealTimeState,
   PatientStatus,
+  SupabasePatientRow,
 } from "@/interface/patient";
 import { supabase } from "@/lib/supabase";
-import {
-  DEFAULT_PATIENT_DATA,
-  PATIENT_STATUS,
-  SESSION_EXPIRY_DAYS,
-} from "@/const/patient";
+import { DEFAULT_PATIENT_DATA, PATIENT_STATUS } from "@/const/patient";
+import { SUPABASE_CONFIG } from "@/const/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { isSessionExpired } from "@/lib/utils";
 
 interface PatientContextType {
   patientState: PatientRealTimeState;
@@ -57,50 +56,37 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // Helper to check if session is expired
-  const isSessionExpired = (lastUpdated: string) => {
-    if (SESSION_EXPIRY_DAYS === null) return false;
-    const expiryMs = SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    const diff = new Date().getTime() - new Date(lastUpdated).getTime();
-    return diff > expiryMs;
-  };
-
-  // 1. Session ID Management & Data Recovery
+  // Session Management
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
     let sid = urlParams.get("id");
 
     const initialize = async () => {
-      // Logic to find the best SID
       if (!sid) {
         sid = sessionStorage.getItem("current_sid");
         if (!sid && pathname === "/patient") {
           sid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
           sessionStorage.setItem("current_sid", sid);
         }
-        if (sid) {
+        if (sid)
           window.history.replaceState(
             null,
             "",
             `${window.location.pathname}?id=${sid}`,
           );
-        }
       }
 
       if (sid) {
         setPatientState((prev) => ({ ...prev, sessionId: sid as string }));
         const { data } = await supabase
-          .from("patients")
+          .from(SUPABASE_CONFIG.TABLE_NAME)
           .select("*")
           .eq("session_id", sid)
           .maybeSingle();
 
         if (data) {
-          // CHECK EXPIRATION
           if (isSessionExpired(data.last_updated)) {
-            console.log("Session expired, starting fresh.");
-            // If expired, clear and let it generate a new one on next cycle or wait
             sessionStorage.removeItem("current_sid");
             window.location.href = "/patient";
             return;
@@ -123,7 +109,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
     const sid = patientState.sessionId || "staff-monitor";
 
     supabase
-      .from("patients")
+      .from(SUPABASE_CONFIG.TABLE_NAME)
       .select("*")
       .order("last_updated", { ascending: false })
       .then(({ data }) => {
@@ -139,7 +125,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
           );
       });
 
-    const channel = supabase.channel("hospital-main-v13", {
+    const channel = supabase.channel(SUPABASE_CONFIG.CHANNEL_NAME, {
       config: { presence: { key: sid } },
     });
 
@@ -157,18 +143,20 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
       })
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "patients" },
+        { event: "*", schema: "public", table: SUPABASE_CONFIG.TABLE_NAME },
         (payload) => {
           if (payload.eventType === "DELETE") {
             setAllPatients((prev) =>
               prev.filter(
-                (p) => p.sessionId !== (payload.old as any).session_id,
+                (p) =>
+                  p.sessionId !==
+                  (payload.old as SupabasePatientRow).session_id,
               ),
             );
             return;
           }
-          const newData = payload.new as any;
-          const mapped = {
+          const newData = payload.new as SupabasePatientRow;
+          const mapped: PatientRealTimeState = {
             sessionId: newData.session_id,
             patientData: newData.patient_data as PatientData,
             status: newData.status as PatientStatus,
@@ -217,7 +205,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
       try {
-        await supabase.from("patients").upsert(
+        await supabase.from(SUPABASE_CONFIG.TABLE_NAME).upsert(
           {
             session_id: state.sessionId,
             patient_data: state.patientData,
@@ -227,8 +215,9 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
           },
           { onConflict: "session_id" },
         );
-      } catch (err: any) {
-        setError(`Sync error: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Sync error: ${message}`);
       }
     }, 500);
   }, []);
@@ -312,7 +301,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({
     <Suspense
       fallback={
         <div className="flex items-center justify-center h-screen bg-white text-blue-600 font-bold">
-          Connecting to Health Services...
+          Connecting...
         </div>
       }
     >
