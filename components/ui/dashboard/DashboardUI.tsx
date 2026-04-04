@@ -3,9 +3,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-/**
- * --- FILTER BUTTON ---
- */
 interface FilterBtnProps {
   label: string;
   active: boolean;
@@ -40,15 +37,15 @@ export const FilterBtn: React.FC<FilterBtnProps> = ({
   );
 };
 
-/**
- * --- PREVIEW SECTION (GROUPING) ---
- */
 interface PreviewSectionProps {
   title: string;
   children: React.ReactNode;
 }
 
-export const PreviewSection: React.FC<PreviewSectionProps> = ({ title, children }) => (
+export const PreviewSection: React.FC<PreviewSectionProps> = ({
+  title,
+  children,
+}) => (
   <div className="space-y-6 text-gray-900">
     <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em] border-b border-gray-50 pb-4">
       {title}

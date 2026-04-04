@@ -47,7 +47,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                 Age / Info
               </th>
               <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                Sync Status
+                Status
               </th>
               <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">
                 Actions

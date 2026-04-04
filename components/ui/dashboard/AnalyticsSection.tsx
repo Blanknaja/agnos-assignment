@@ -32,7 +32,6 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
 }) => {
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {/* 1. Age Demographics */}
       <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs flex flex-col h-64">
         <h3 className="font-black text-gray-800 text-[10px] uppercase tracking-[0.2em] flex items-center mb-4">
           <GraduationCap className="w-4 h-4 mr-2 text-blue-600" /> Age
@@ -72,7 +71,6 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
         </div>
       </div>
 
-      {/* 2. Preferred Languages */}
       <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs flex flex-col h-64 text-gray-900">
         <h3 className="font-black text-gray-800 text-[10px] uppercase tracking-[0.2em] flex items-center mb-4">
           <Globe className="w-4 h-4 mr-2 text-indigo-600" /> Language Mix
@@ -107,7 +105,6 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
         </p>
       </div>
 
-      {/* 3. Registration Trend */}
       <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs flex flex-col h-64 lg:col-span-2 text-gray-900">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-black text-gray-800 text-[10px] uppercase tracking-[0.2em] flex items-center">
@@ -159,11 +156,6 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
               {analytics.avgProgress}%
             </p>
           </div>
-          {/* <div className="flex -space-x-2">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-400">P</div>
-            ))}
-          </div> */}
         </div>
       </div>
     </section>
