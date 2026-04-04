@@ -47,4 +47,5 @@ export interface PatientContextType {
   submitPatientData: () => void;
   startNewSession: () => void;
   error: string | null;
+  connectionStatus: string;
 }
