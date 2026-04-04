@@ -5,7 +5,14 @@ import { usePatient } from "@/contexts/PatientContext";
 import { Input } from "@/components/input";
 import { Label } from "@/components/label";
 import { Button } from "@/components/button";
-import { CheckCircle2, PlusCircle, AlertCircle, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  Loader2,
+  ShieldCheck,
+  Heart,
+  User,
+  Globe,
+} from "lucide-react";
 import { GENDER_OPTIONS, PATIENT_STATUS } from "@/const/patient";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -56,7 +63,6 @@ export const PatientForm: React.FC = () => {
 
   useEffect(() => {
     if (countdown === null) return;
-
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
@@ -74,30 +80,31 @@ export const PatientForm: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-blue-600/90 backdrop-blur-md"
           >
-            <div className="space-y-6 p-8 text-center">
+            <div className="space-y-6 p-8 text-center text-white">
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-600"
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-white text-blue-600 shadow-2xl"
               >
-                <CheckCircle2 className="h-12 w-12" />
+                <ShieldCheck className="h-12 w-12" />
               </motion.div>
-              <h2 className="text-3xl font-black text-gray-900">
-                Submission Successful!
-              </h2>
-              <p className="text-lg font-medium text-gray-500">
-                Your data has been securely synced with our staff.
-              </p>
+              <div className="space-y-1">
+                <h2 className="text-2xl font-black uppercase tracking-tighter">
+                  Data Received
+                </h2>
+                <p className="text-base font-medium text-blue-100">
+                  Your information is now being processed.
+                </p>
+              </div>
               <div className="pt-4">
-                <div className="inline-flex items-center space-x-3 rounded-2xl bg-gray-100 px-6 py-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                  <span className="font-bold text-gray-700">
-                    Resetting form in{" "}
-                    <span className="text-xl text-blue-600">{countdown}</span>
-                    ...
+                <div className="inline-flex items-center space-x-3 bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  <span className="font-bold uppercase tracking-widest text-xs">
+                    Form Resetting in{" "}
+                    <span className="text-lg ml-1 font-mono">{countdown}</span>
                   </span>
                 </div>
               </div>
@@ -107,47 +114,36 @@ export const PatientForm: React.FC = () => {
       </AnimatePresence>
 
       {error && (
-        <div className="flex items-center space-x-3 animate-pulse rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
-          <AlertCircle className="h-6 w-6 text-red-600" />
+        <div className="flex items-center space-x-3 animate-pulse rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 shadow-lg shadow-red-900/5">
+          <AlertCircle className="h-5 w-5 text-red-600" />
           <div>
-            <p className="font-bold">Connection Issue</p>
-            <p className="text-sm">{error}</p>
+            <p className="font-bold uppercase text-[10px] tracking-widest text-red-900">
+              System Error
+            </p>
+            <p className="text-xs font-medium opacity-80">{error}</p>
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            Active Session
-          </p>
-          <p className="font-mono text-sm text-blue-600">
-            {patientState.sessionId}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={startNewSession}
-          className="rounded-xl text-[10px] font-bold uppercase cursor-pointer gap-2 tracking-widest"
-        >
-          <PlusCircle className="h-4 w-4" /> New Form
-        </Button>
-      </div>
-
       <form
         onSubmit={handleSubmit}
-        className={`space-y-8 rounded-[2rem] border border-gray-100 bg-white p-8 shadow-xl transition-all duration-500 ${countdown !== null ? "scale-95 blur-xs pointer-events-none opacity-20" : ""}`}
+        className={`space-y-10 rounded-[2.5rem] border border-blue-50 bg-white p-8 md:p-12 shadow-2xl shadow-blue-900/5 transition-all duration-700 ${countdown !== null ? "scale-95 blur-md pointer-events-none opacity-20" : "scale-100"}`}
       >
-        <div className="space-y-6">
-          <h2 className="border-b border-gray-50 pb-4 text-2xl font-black uppercase tracking-tighter text-gray-900">
-            Personal Information
-          </h2>
+        <div className="space-y-8">
+          <div className="flex items-center space-x-3 border-b border-gray-50 pb-4">
+            <div className="bg-blue-50 p-2 rounded-xl text-blue-600">
+              <User className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg md:text-xl font-black tracking-tight text-gray-900 uppercase">
+              Personal <span className="text-blue-600">Profile</span>
+            </h2>
+          </div>
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <Label
                 htmlFor="firstName"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 First Name
               </Label>
@@ -156,31 +152,31 @@ export const PatientForm: React.FC = () => {
                 name="firstName"
                 value={patientData.firstName}
                 onChange={handleChange}
-                placeholder="John"
+                placeholder="Ex. John"
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="middleName"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
-                Middle Name (Optional)
+                Middle Name
               </Label>
               <Input
                 id="middleName"
                 name="middleName"
                 value={patientData.middleName || ""}
                 onChange={handleChange}
-                placeholder="Quincy"
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                placeholder="Optional"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="lastName"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Last Name
               </Label>
@@ -189,15 +185,15 @@ export const PatientForm: React.FC = () => {
                 name="lastName"
                 value={patientData.lastName}
                 onChange={handleChange}
-                placeholder="Doe"
+                placeholder="Ex. Doe"
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="dateOfBirth"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Date of Birth
               </Label>
@@ -208,13 +204,13 @@ export const PatientForm: React.FC = () => {
                 value={patientData.dateOfBirth}
                 onChange={handleChange}
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="gender"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Gender
               </Label>
@@ -223,10 +219,10 @@ export const PatientForm: React.FC = () => {
                 name="gender"
                 value={patientData.gender}
                 onChange={handleChange}
-                className="flex h-10 w-full rounded-xl border-none bg-gray-50 px-3 py-2 text-sm transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="flex h-12 w-full rounded-xl border-2 border-gray-50 bg-gray-50/50 px-5 py-2 text-sm font-bold transition-all focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-0 appearance-none"
                 required
               >
-                <option value="">Select Gender</option>
+                <option value="">Choose Gender</option>
                 {GENDER_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -237,31 +233,37 @@ export const PatientForm: React.FC = () => {
             <div className="space-y-2">
               <Label
                 htmlFor="religion"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
-                Religion (Optional)
+                Religion
               </Label>
               <Input
                 id="religion"
                 name="religion"
                 value={patientData.religion || ""}
                 onChange={handleChange}
-                placeholder="Buddhist / Christian / Islam"
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                placeholder="Optional"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
           </div>
         </div>
 
-        <div className="space-y-6 pt-4">
-          <h2 className="border-b border-gray-50 pb-4 text-2xl font-black uppercase tracking-tighter text-gray-900">
-            Contact Channels
-          </h2>
+        <div className="space-y-8 pt-2">
+          <div className="flex items-center space-x-3 border-b border-gray-50 pb-4">
+            <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600">
+              <Globe className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg md:text-xl font-black tracking-tight text-gray-900 uppercase">
+              Contact <span className="text-indigo-600">Methods</span>
+            </h2>
+          </div>
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Email Address
               </Label>
@@ -271,15 +273,15 @@ export const PatientForm: React.FC = () => {
                 type="email"
                 value={patientData.email}
                 onChange={handleChange}
-                placeholder="john.doe@example.com"
+                placeholder="example@mail.com"
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="phoneNumber"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Phone Number
               </Label>
@@ -289,41 +291,47 @@ export const PatientForm: React.FC = () => {
                 type="tel"
                 value={patientData.phoneNumber}
                 onChange={handleChange}
-                placeholder="081-234-5678"
+                placeholder="0xx-xxx-xxxx"
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label
                 htmlFor="address"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
-                Permanent Address
+                Residential Address
               </Label>
               <textarea
                 id="address"
                 name="address"
                 value={patientData.address}
                 onChange={handleChange}
-                rows={3}
-                className="flex w-full rounded-xl border-none bg-gray-50 px-3 py-2 text-sm transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
-                placeholder="123 Street, City, Zip Code"
+                rows={2}
+                className="flex w-full rounded-xl border-2 border-gray-50 bg-gray-50/50 px-5 py-3 text-sm font-bold transition-all focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-0"
+                placeholder="Enter full address here..."
                 required
               />
             </div>
           </div>
         </div>
 
-        <div className="space-y-6 pt-4">
-          <h2 className="border-b border-gray-50 pb-4 text-2xl font-black uppercase tracking-tighter text-gray-900">
-            Emergency Contact (Optional)
-          </h2>
+        <div className="space-y-8 pt-2">
+          <div className="flex items-center space-x-3 border-b border-gray-50 pb-4">
+            <div className="bg-red-50 p-2 rounded-xl text-red-600">
+              <Heart className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg md:text-xl font-black tracking-tight text-gray-900 uppercase">
+              Emergency <span className="text-red-600">Contact</span>
+            </h2>
+          </div>
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <Label
                 htmlFor="ecName"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Contact Name
               </Label>
@@ -332,14 +340,14 @@ export const PatientForm: React.FC = () => {
                 name="name"
                 value={patientData.emergencyContact?.name || ""}
                 onChange={handleEmergencyContactChange}
-                placeholder="Jane Doe"
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                placeholder="Full Name"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="ecRelationship"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Relationship
               </Label>
@@ -348,22 +356,28 @@ export const PatientForm: React.FC = () => {
                 name="relationship"
                 value={patientData.emergencyContact?.relationship || ""}
                 onChange={handleEmergencyContactChange}
-                placeholder="Spouse / Parent / Sibling"
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Sibling"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
           </div>
         </div>
 
-        <div className="space-y-6 pt-4">
-          <h2 className="border-b border-gray-50 pb-4 text-2xl font-black uppercase tracking-tighter text-gray-900">
-            Legal & Nationality
-          </h2>
+        <div className="space-y-8 pt-2">
+          <div className="flex items-center space-x-3 border-b border-gray-50 pb-4">
+            <div className="bg-teal-50 p-2 rounded-xl text-teal-600">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg md:text-xl font-black tracking-tight text-gray-900 uppercase">
+              Identification <span className="text-teal-600">Legal</span>
+            </h2>
+          </div>
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <Label
                 htmlFor="nationality"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Nationality
               </Label>
@@ -372,15 +386,15 @@ export const PatientForm: React.FC = () => {
                 name="nationality"
                 value={patientData.nationality}
                 onChange={handleChange}
-                placeholder="Thai"
+                placeholder="Ex. Thai"
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
             <div className="space-y-2">
               <Label
                 htmlFor="preferredLanguage"
-                className="text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1"
               >
                 Preferred Language
               </Label>
@@ -389,41 +403,41 @@ export const PatientForm: React.FC = () => {
                 name="preferredLanguage"
                 value={patientData.preferredLanguage}
                 onChange={handleChange}
-                placeholder="Thai / English"
+                placeholder="Ex. Thai"
                 required
-                className="rounded-xl border-none bg-gray-50 transition-all focus:ring-2 focus:ring-blue-500"
+                className="h-12 px-5 rounded-xl border-2 border-gray-50 bg-gray-50/50 transition-all focus:bg-white focus:border-blue-500 focus:ring-0 font-bold text-sm"
               />
             </div>
           </div>
         </div>
 
-        <div className="pt-8">
+        <div className="pt-6">
           <Button
             type="submit"
-            className="h-14 w-full rounded-2xl font-black uppercase shadow-lg shadow-blue-100 cursor-pointer tracking-[0.2em]"
+            className="h-14 w-full rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-base font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 cursor-pointer active:scale-[0.98] transition-all"
             size="lg"
           >
             {patientState.status === PATIENT_STATUS.SUBMITTED
-              ? "Update Registration"
-              : "Finalize & Submit"}
+              ? "Update Information"
+              : "Submit Form"}
           </Button>
         </div>
 
-        <div className="mt-4 text-center">
+        <div className="mt-2 text-center">
           <div
-            className={`inline-flex items-center space-x-2 rounded-full border px-4 py-2 transition-all duration-500 ${
+            className={`inline-flex items-center space-x-2 px-4 py-1.5 rounded-full transition-all duration-700 ${
               patientState.status === PATIENT_STATUS.FILLING
-                ? "border-yellow-100 bg-yellow-50 text-yellow-700"
-                : "border-green-100 bg-green-50 text-green-700"
+                ? "text-yellow-600 bg-yellow-50/50"
+                : "text-green-600 bg-green-50/50"
             }`}
           >
             <span
-              className={`h-2 w-2 rounded-full ${patientState.status === PATIENT_STATUS.FILLING ? "animate-pulse bg-yellow-500" : "bg-green-500"}`}
+              className={`h-1.5 w-1.5 rounded-full ${patientState.status === PATIENT_STATUS.FILLING ? "animate-pulse bg-yellow-500" : "bg-green-500"}`}
             />
-            <span className="text-[10px] font-black uppercase tracking-widest">
+            <span className="text-[9px] font-black uppercase tracking-widest">
               {patientState.status === PATIENT_STATUS.FILLING
                 ? "Live Sync Active"
-                : "Security Verified & Saved"}
+                : "Data Securely Saved"}
             </span>
           </div>
         </div>

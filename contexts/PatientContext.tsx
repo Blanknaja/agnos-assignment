@@ -31,6 +31,8 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const pathname = usePathname();
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] =
+    useState<string>("CONNECTING");
 
   const [patientState, setPatientState] = useState<PatientRealTimeState>({
     sessionId: "",
@@ -60,15 +62,16 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
 
     if (sid) {
       setPatientState((prev) => ({ ...prev, sessionId: sid as string }));
-      const { data } = await supabase
+      supabase
         .from(SUPABASE_CONFIG.TABLE_NAME)
         .select("*")
         .eq("session_id", sid)
-        .maybeSingle();
-
-      if (data) {
-        setPatientState(mapRecordToState(data as SupabasePatientRow));
-      }
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setPatientState(mapRecordToState(data as SupabasePatientRow));
+          }
+        });
     }
   }, [pathname]);
 
@@ -79,11 +82,14 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const sid = patientState.sessionId || "monitor";
 
+    // Initial load for dashboard
     const fetchInitialData = async () => {
-      const { data } = await supabase
+      const { data, error: fetchErr } = await supabase
         .from(SUPABASE_CONFIG.TABLE_NAME)
         .select("*")
         .order("last_updated", { ascending: false });
+
+      if (fetchErr) console.error("Fetch Error:", fetchErr);
       if (data) {
         setDbPatients((data as SupabasePatientRow[]).map(mapRecordToState));
       }
@@ -125,6 +131,8 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
       });
 
     channel.subscribe(async (status) => {
+      setConnectionStatus(status);
+
       if (
         status === "SUBSCRIBED" &&
         pathname === "/patient" &&
@@ -234,6 +242,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         submitPatientData,
         startNewSession,
         error,
+        connectionStatus,
       }}
     >
       {children}
