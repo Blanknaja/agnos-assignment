@@ -1,11 +1,25 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { PatientData } from "@/interface/patient";
+import {
+  PatientData,
+  PatientRealTimeState,
+  SupabasePatientRow,
+} from "@/interface/patient";
 import { SESSION_EXPIRY_DAYS } from "@/const/session";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+export const mapRecordToState = (
+  record: SupabasePatientRow,
+): PatientRealTimeState => ({
+  sessionId: record.session_id,
+  patientData: record.patient_data,
+  status: record.status,
+  lastUpdated: record.last_updated,
+  lastChangedField: record.last_changed_field,
+});
 
 export function calculateAge(dob: string): number {
   if (!dob) return 0;
@@ -30,27 +44,24 @@ export function calculateFormProgress(data: PatientData): number {
     "address",
     "preferredLanguage",
     "nationality",
+    "religion",
   ];
   const filledFields = fields.filter((field) => !!data[field]);
-  return Math.round((filledFields.length / fields.length) * 100);
+
+  let ecPoints = 0;
+  if (data.emergencyContact?.name) ecPoints += 0.5;
+  if (data.emergencyContact?.relationship) ecPoints += 0.5;
+
+  const totalPossible = fields.length + 1; // +1 for Emergency Contact
+  const currentTotal = filledFields.length + ecPoints;
+
+  return Math.round((currentTotal / totalPossible) * 100);
 }
 
-/**
- * Checks if a session has expired based on lastUpdated timestamp.
- * SESSION_EXPIRY_DAYS is defined in @/const/patient.ts
- *
- * Usage examples for SESSION_EXPIRY_DAYS:
- * - 1          : Expires after 24 hours
- * - 1/24       : Expires after 1 hour (0.0416)
- * - 1/(24*60)  : Expires after 1 minute
- */
 export function isSessionExpired(lastUpdated: string): boolean {
   if (SESSION_EXPIRY_DAYS === null) return false;
-
   const lastUpdateDate = new Date(lastUpdated).getTime();
   const now = new Date().getTime();
-
   const expiryMs = SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-
   return now - lastUpdateDate > expiryMs;
 }

@@ -15,6 +15,7 @@ export const GENDER_OPTIONS: { label: string; value: Gender }[] = [
 
 export const DEFAULT_PATIENT_DATA = {
   firstName: "",
+  middleName: "",
   lastName: "",
   dateOfBirth: "",
   gender: "" as Gender | "",
@@ -23,4 +24,9 @@ export const DEFAULT_PATIENT_DATA = {
   address: "",
   preferredLanguage: "",
   nationality: "",
+  religion: "",
+  emergencyContact: {
+    name: "",
+    relationship: "",
+  },
 };

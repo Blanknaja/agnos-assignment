@@ -8,10 +8,7 @@ export default function PatientPage() {
           <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
             Patient Registration
           </h1>
-          <p className="mt-4 text-lg text-gray-600 italic">
-            Please fill in your information carefully. Your data is synced in
-            real-time with our staff.
-          </p>
+          <p className="mt-4 text-lg text-gray-600 italic">empty desc</p>
         </div>
         <PatientForm />
       </div>
