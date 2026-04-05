@@ -66,8 +66,14 @@ export const MainHeader: React.FC = () => {
 
             <button
               onClick={toggleMenu}
-              className="p-2 rounded-xl bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all cursor-pointer"
+              className="relative p-2 rounded-xl bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all cursor-pointer"
             >
+              {!isMenuOpen && (
+                <span className="absolute top-0 right-0 flex h-2.5 w-2.5 -mt-0.5 -mr-0.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+                </span>
+              )}
               {isMenuOpen ? (
                 <X className="w-6 h-6" />
               ) : (
