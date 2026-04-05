@@ -33,7 +33,6 @@ export const MainHeader: React.FC = () => {
     <>
       <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-blue-50 px-4 md:px-8 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Left: Logo */}
           <div className="flex items-center space-x-4">
             <Link href="/" onClick={() => setIsMenuOpen(false)}>
               <Image
@@ -43,7 +42,9 @@ export const MainHeader: React.FC = () => {
                 height={32}
                 priority
                 className="cursor-pointer hover:opacity-80 transition-opacity"
+                style={{ height: "auto" }}
               />
+
             </Link>
           </div>
 
