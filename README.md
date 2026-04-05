@@ -1,11 +1,21 @@
 # Agnos Assignment — Patient Real-Time Registration System
 
+<br />
+<br />
+
+<div align="center">
+  <img src="./public/image/agnos-logo-with-text.svg" alt="Agnos Logo" width="300" />
+</div>
+
+<br />
+<br />
+
 ## Getting Started
 
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Blanknaja/agnos-assignment.git
 cd agnos-assignment
 npm install
 ```
@@ -39,7 +49,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 
 ## Overview
 
-A real-time patient data intake system built for Agnos Health. Patients fill out a registration form at `/patient`, while clinical staff monitor all incoming submissions live at `/staff-view` — with no page refresh required.
+A real-time patient data intake system built for Agnos Health. Patients fill out a registration form at `/patient`, while staff monitor all incoming submissions live at `/staff-view` — with no page refresh required.
 
 The system is powered by **Supabase Realtime** and **Presence**, giving both patients and staff a seamless, always-in-sync experience.
 
@@ -179,22 +189,23 @@ agnos-assignment/
 
 ```markdown
 Action flow
-┌─────────────────┐ PostgreSQL ┌─────────────────────┐
-│ Patient Page │ upsert (debounced 200ms) │ │
-│ /patient?id=X │ ─────────────────────────► │ Supabase │
-│ │ │ (patients table) │
-│ [types in form]│ ◄────────────────────────── │ │
-└─────────────────┘ Realtime postgres_changes └──────────┬──────────┘
-│
-│ postgres_changes
-│ + presence sync
-▼
-┌─────────────────────┐
-│ Staff Dashboard │
-│ /staff-view │
-│ │
-│ [sees updates live]│
-└─────────────────────┘
+
+┌─────────────────┐         PostgreSQL          ┌─────────────────────┐
+│  Patient Page   │   upsert (debounced 200ms)  │                     │
+│  /patient?id=X  │ ─────────────────────────►  │   Supabase          │
+│                 │                             │   (patients table)  │
+│  [types in form]│ ◄────────────────────────── │                     │
+└─────────────────┘   Realtime postgres_changes └──────────┬──────────┘
+                                                           │
+                                                           │ postgres_changes
+                                                           │ + presence sync
+                                                           ▼
+                                                ┌─────────────────────┐
+                                                │  Staff Dashboard    │
+                                                │  /staff-view        │
+                                                │                     │
+                                                │  [sees updates live]│
+                                                └─────────────────────┘
 ```
 
 ```
@@ -221,11 +232,37 @@ Real-time Synchronization Architecture Flow ( sequence )
       |                                      |                                7. UI Re-renders automatically!
 ```
 
+
+## State Persistence & Security: Hybrid Storage Approach
+
+This system uses a hybrid approach of **LocalStorage** and **SessionStorage** to balance developer testing (multi-tab support) with end-user security (data ownership).
+
+### 1. SessionStorage (Tab Isolation)
+We use `sessionStorage` to store the active `current_sid`.
+*   **Purpose:** To support **Multi-tab usage** during the same browser session.
+*   **Why:** Unlike LocalStorage, SessionStorage is unique to each browser tab. This allows a user (or a developer) to open 5 different tabs and register 5 different patients simultaneously without their IDs or form data ever clashing.
+
+### 2. LocalStorage (Security & Ownership)
+We use `localStorage` to store `agnos_owned_sessions` (a list of all IDs created by this device).
+*   **Purpose:** To provide **Pseudo-Authentication** and **Device Persistence**.
+*   **Why:** Since the system has no login, we need a way to verify that the person accessing `?id=p_123` is the actual person who created it.
+*   **The Logic:** When a new form is generated, the ID is "signed" into the device's LocalStorage. If a user tries to manually type a random ID in the URL that they don't "own" in their LocalStorage, the system will detect the security breach and redirect them to a fresh, secure session immediately.
+
+### Summary Comparison
+
+| Feature | Storage Type | Reason |
+| :--- | :--- | :--- |
+| **Active Patient Identity** | `sessionStorage` | Ensures Tab A doesn't overwrite Tab B. |
+| **Access Rights (Ownership)** | `localStorage` | Keeps a permanent "key" on the device to prove ownership of specific forms. |
+| **"New Form" Logic** | `sessionStorage` | Clearing this allows a single tab to "forget" its current ID and start fresh. |
+| **Resuming after Restart** | `localStorage` | Allows patients to return to their form days later even after a full computer restart. |
+
+---
+
 ## Pages
 
 ### `/patient` — Patient Registration Form
 
-patient-full-desktop
 
 ![Patient Form Desktop](./public/image/readme/patient-full-desktop.png)
 
@@ -238,7 +275,14 @@ patient-full-desktop
 
 ### `/staff-view` — Staff Dashboard
 
-![Staff Dashboard](https://your-mockup-url-here.com/staff-dashboard.png)
+![Staff Dashboard Desktop](./public/image/readme/staff-dashboard-desktop.png)
+
+![Staff Dashboard Desktop1](./public/image/readme/staff-dashboard-desktop-1.png)
+
+![Staff Dashboard Mobile](./public/image/readme/staff-dashboard-mobile.png)
+
+![Staff Dashboard Mobile1](./public/image/readme/staff-dashboard-mobile-1.png)
+
 
 - Real-time patient list, updating as patients type
 - Online/Offline dot indicator per patient (via Supabase Presence)
@@ -249,11 +293,9 @@ patient-full-desktop
 
 ---
 
----
 
 ## ✨ Bonus Features
 
-These features go beyond the core requirements and were added to improve the clinical staff experience.
 
 ### Analytics Dashboard
 
