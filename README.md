@@ -1,7 +1,39 @@
 # Agnos Assignment — Patient Real-Time Registration System
 
+## Getting Started
+
+### 1. Clone and install
+
+```bash
+git clone <repo-url>
+cd agnos-assignment
+npm install
+```
+
+### 2. Configure environment
+
+Copy the example env file and fill Supabase credentials like this:
+
+```bash
+cp .env.local.example .env.local
+```
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://jkedukxrwlbqownazefm.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprZWR1a3hyd2xicW93bmF6ZWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxOTgyODgsImV4cCI6MjA5MDc3NDI4OH0.GKeHW3yF5GvPBr0kMS8qUL5onrUYZrRlkkhVCfNbmq4
+```
+
+## Desktop
+
 ![App Preview Desktop](./public/image/readme/index-page-desktop.png)
+
+## Mobile
+
 ![App Preview Mobile](./public/image/readme/index-page-mobile.png)
+
+## Feature
+
+![App Preview Mobile](./public/image/readme/feature.png)
 
 ---
 
@@ -145,30 +177,59 @@ agnos-assignment/
 
 ### Architecture
 
+```markdown
+Action flow
+┌─────────────────┐ PostgreSQL ┌─────────────────────┐
+│ Patient Page │ upsert (debounced 200ms) │ │
+│ /patient?id=X │ ─────────────────────────► │ Supabase │
+│ │ │ (patients table) │
+│ [types in form]│ ◄────────────────────────── │ │
+└─────────────────┘ Realtime postgres_changes └──────────┬──────────┘
+│
+│ postgres_changes
+│ + presence sync
+▼
+┌─────────────────────┐
+│ Staff Dashboard │
+│ /staff-view │
+│ │
+│ [sees updates live]│
+└─────────────────────┘
 ```
-┌─────────────────┐         PostgreSQL          ┌─────────────────────┐
-│  Patient Page   │   upsert (debounced 200ms)  │                     │
-│  /patient?id=X  │ ─────────────────────────►  │   Supabase          │
-│                 │                             │   (patients table)  │
-│  [types in form]│ ◄────────────────────────── │                     │
-└─────────────────┘   Realtime postgres_changes └──────────┬──────────┘
-                                                           │
-                                                           │ postgres_changes
-                                                           │ + presence sync
-                                                           ▼
-                                                ┌─────────────────────┐
-                                                │  Staff Dashboard    │
-                                                │  /staff-view        │
-                                                │                     │
-                                                │  [sees updates live]│
-                                                └─────────────────────┘
+
+```
+Real-time Synchronization Architecture Flow ( sequence )
+
+
+
+[ Patient Client ]                  [ Supabase Backend ]                  [ Staff Dashboard Client ]
+(Patient Form)                      (PostgreSQL + Realtime)               (Next.js React State)
+      |                                      |                                      |
+  1. Fill form & Submit -------------------->|                                      |
+      | (HTTP POST Request)                  |                                      |
+      |                                      |                                      |
+      |                                2. Save data to table (WRITE)                |
+      |                                      |                                      |
+      |                                3. Write to WAL (Postgres Change)            |
+      |                                      |                                      |
+      |                                4. Read WAL & Broadcast via WebSocket ------>|
+      |                                      |                                      |
+      |                                      |                                5. Receive Payload Event (INSERT)
+      |                                      |                                      |
+      |                                      |                                6. Update React State
+      |                                      |                                      |
+      |                                      |                                7. UI Re-renders automatically!
 ```
 
 ## Pages
 
 ### `/patient` — Patient Registration Form
 
-![Patient Form](https://your-mockup-url-here.com/patient-form.png)
+patient-full-desktop
+
+![Patient Form Desktop](./public/image/readme/patient-full-desktop.png)
+
+![Patient Form Mobile](./public/image/readme/patient-full-mobile.png)
 
 - Session-based: each patient gets a unique `?id=` URL they can return to
 - Live Sync indicator in the bottom of the form shows sync status
