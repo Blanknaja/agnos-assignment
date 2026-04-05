@@ -46,11 +46,6 @@ export interface PatientContextType {
   updateStatus: (status: PatientStatus) => void;
   submitPatientData: () => void;
   startNewSession: () => void;
-  /**
-   * Fetches and syncs a session by ID. Called by the PatientClient page component
-   * (which re-renders on URL changes) rather than from the Root Layout-level Context
-   * (which does NOT re-render on same-path query param changes in Next.js App Router).
-   */
   syncSession: (sid: string) => Promise<void>;
   error: string | null;
   connectionStatus: string;

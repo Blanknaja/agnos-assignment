@@ -18,13 +18,13 @@ export const FilterBtn: React.FC<FilterBtnProps> = ({
 }) => {
   const styles: Record<string, string> = {
     blue: active
-      ? "bg-blue-600 text-white shadow-xl scale-105"
+      ? "bg-blue-600 text-white shadow-xl "
       : "text-gray-400 hover:text-gray-600",
     yellow: active
-      ? "bg-yellow-500 text-white shadow-xl scale-105"
+      ? "bg-yellow-500 text-white shadow-xl "
       : "text-gray-400 hover:text-gray-600",
     green: active
-      ? "bg-green-600 text-white shadow-xl scale-105"
+      ? "bg-green-600 text-white shadow-xl "
       : "text-gray-400 hover:text-gray-600",
   };
   return (
@@ -54,9 +54,6 @@ export const PreviewSection: React.FC<PreviewSectionProps> = ({
   </div>
 );
 
-/**
- * --- DATA LABEL (FIELD DISPLAY) ---
- */
 interface DataLabelProps {
   label: string;
   value: string | undefined;
@@ -71,7 +68,7 @@ export const DataLabel: React.FC<DataLabelProps> = ({
   active,
 }) => (
   <div
-    className={`${isFull ? "col-span-2" : ""} transition-all duration-500 p-3 rounded-2xl border border-transparent ${active ? "bg-blue-50 border-blue-100 scale-105 shadow-sm" : ""}`}
+    className={`${isFull ? "col-span-2" : ""} transition-all duration-500 p-3 rounded-2xl border border-transparent ${active ? "bg-blue-50 border-blue-100  shadow-sm" : ""}`}
   >
     <p className="text-[10px] text-gray-400 font-black uppercase mb-2 tracking-widest">
       {label}

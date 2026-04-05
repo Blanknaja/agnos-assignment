@@ -42,7 +42,6 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
     lastUpdated: new Date().toISOString(),
   });
 
-  // Tracks the active sessionId without creating stale closures in callbacks
   const sessionIdRef = useRef<string>("");
   useEffect(() => {
     sessionIdRef.current = patientState.sessionId;
@@ -70,24 +69,10 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
     [getOwnedIds],
   );
 
-  /**
-   * SYNC SESSION
-   *
-   * This function is intentionally NOT called from inside this Provider.
-   * The Provider lives in the Root Layout which Next.js App Router does NOT
-   * re-render when only query params change on the same path (/patient?id=xxx
-   * → /patient?id=yyy). Hooks like useSearchParams() and popstate listeners
-   * inside the Provider would see the URL change, but React would never trigger
-   * a re-render of the Provider itself, making them useless.
-   *
-   * Instead, this function is exposed via Context and called by PatientClient
-   * (a page-level component that DOES re-render on every URL change).
-   */
   const syncSession = useCallback(
     async (sid: string) => {
       const ownedIds = getOwnedIds();
 
-      // Unknown ID → create a new session and redirect
       if (!ownedIds.includes(sid)) {
         const newSid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
         addOwnedId(newSid);
@@ -96,10 +81,8 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // Same session already loaded → skip unnecessary fetch
       if (sid === sessionIdRef.current) return;
 
-      // New session → reset form and fetch from Supabase
       setPatientState((prev) => ({
         ...prev,
         sessionId: sid,
@@ -125,11 +108,6 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
     [getOwnedIds, addOwnedId, router],
   );
 
-  /**
-   * REALTIME ENGINE
-   * Subscribes to Supabase Realtime for live updates and Presence tracking.
-   * Re-runs whenever the active sessionId or path changes.
-   */
   useEffect(() => {
     const sid = patientState.sessionId || "monitor";
 

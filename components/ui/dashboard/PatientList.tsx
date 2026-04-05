@@ -3,7 +3,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Activity, ChevronRight } from "lucide-react";
-import { PatientRealTimeState, PatientStatus } from "@/interface/patient";
+import { PatientData, PatientRealTimeState, PatientStatus } from "@/interface/patient";
 import { PATIENT_STATUS } from "@/const/patient";
 import { calculateAge, calculateFormProgress } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   activeSelectedId,
   onSelect,
 }) => {
-  const getStatusBadge = (status: PatientStatus, patientData: any) => {
+  const getStatusBadge = (status: PatientStatus, patientData: PatientData) => {
     if (status === PATIENT_STATUS.SUBMITTED) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-green-100 text-green-800 uppercase">

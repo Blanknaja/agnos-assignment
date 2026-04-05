@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { usePatient } from "@/contexts/PatientContext";
 import { PatientRealTimeState, PatientStatus } from "@/interface/patient";
 import { PATIENT_STATUS } from "@/const/patient";
@@ -11,7 +11,6 @@ import {
 } from "@/lib/utils";
 
 import { AnalyticsSection } from "./dashboard/AnalyticsSection";
-
 import { FilterBtn } from "./dashboard/DashboardUI";
 import { SearchWithButton } from "@/components/ui/searchwithbutton";
 import { PatientList } from "./dashboard/PatientList";
@@ -21,28 +20,55 @@ import { AnimatePresence } from "framer-motion";
 
 const ITEMS_PER_PAGE = 8;
 
+type DashboardFilter = "all" | "active" | PatientStatus;
+
 export const StaffDashboard: React.FC = () => {
   const { allPatients } = usePatient();
   const [selectedPatient, setSelectedPatient] =
     useState<PatientRealTimeState | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<PatientStatus | "all">(
-    "all",
-  );
+  const [filterStatus, setFilterStatus] = useState<DashboardFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (status: DashboardFilter) => {
+    setFilterStatus(status);
+    setCurrentPage(1);
+  };
+
   const filteredPatients = useMemo(() => {
-    return allPatients.filter((p) => {
+    const results = allPatients.filter((p) => {
       const searchLower = searchTerm.toLowerCase();
       const fullName =
         `${p.patientData.firstName} ${p.patientData.lastName}`.toLowerCase();
       const email = (p.patientData.email || "").toLowerCase();
       const sid = p.sessionId.toLowerCase();
+
+      const matchesSearch =
+        fullName.includes(searchLower) ||
+        email.includes(searchLower) ||
+        sid.includes(searchLower);
+
+      let matchesFilter = true;
+      if (filterStatus === "active") {
+        matchesFilter = p.isOnline === true;
+      } else if (filterStatus !== "all") {
+        matchesFilter = p.status === filterStatus;
+      }
+
+      return matchesSearch && matchesFilter;
+    });
+
+    return [...results].sort((a, b) => {
+      if (a.isOnline && !b.isOnline) return -1;
+      if (!a.isOnline && b.isOnline) return 1;
+
       return (
-        (fullName.includes(searchLower) ||
-          email.includes(searchLower) ||
-          sid.includes(searchLower)) &&
-        (filterStatus === "all" || p.status === filterStatus)
+        new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
       );
     });
   }, [allPatients, searchTerm, filterStatus]);
@@ -80,10 +106,6 @@ export const StaffDashboard: React.FC = () => {
     };
   }, [allPatients]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
-
   const activeSelectedPatient =
     allPatients.find((p) => p.sessionId === selectedPatient?.sessionId) ||
     selectedPatient;
@@ -91,34 +113,42 @@ export const StaffDashboard: React.FC = () => {
   return (
     <>
       <main className="flex-1 overflow-y-auto p-4 md:p-8 h-full">
-        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+        <div className="max-w-7xl mx-auto space-y-8 pb-20 text-gray-900">
           <AnalyticsSection analytics={analytics} />
 
-          <div className="space-y-4">
+          <div className="space-y-4 text-gray-900">
             <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-              <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar">
+              <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-gray-900">
                 <FilterBtn
                   label="All"
                   active={filterStatus === "all"}
-                  onClick={() => setFilterStatus("all")}
+                  onClick={() => handleFilterChange("all")}
                 />
+
                 <FilterBtn
                   label="Active"
+                  active={filterStatus === "active"}
+                  onClick={() => handleFilterChange("active")}
+                  color="green"
+                />
+
+                <FilterBtn
+                  label="Filling"
                   active={filterStatus === PATIENT_STATUS.FILLING}
-                  onClick={() => setFilterStatus(PATIENT_STATUS.FILLING)}
+                  onClick={() => handleFilterChange(PATIENT_STATUS.FILLING)}
                   color="yellow"
                 />
                 <FilterBtn
                   label="Completed"
                   active={filterStatus === PATIENT_STATUS.SUBMITTED}
-                  onClick={() => setFilterStatus(PATIENT_STATUS.SUBMITTED)}
-                  color="green"
+                  onClick={() => handleFilterChange(PATIENT_STATUS.SUBMITTED)}
+                  color="blue"
                 />
               </div>
-              <div className="w-full xl:w-96">
+              <div className="w-full xl:w-96 text-gray-900">
                 <SearchWithButton
                   value={searchTerm}
-                  onChange={setSearchTerm}
+                  onChange={handleSearchChange}
                   placeholder="Contain search: name, email, id..."
                 />
               </div>

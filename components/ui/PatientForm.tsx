@@ -67,13 +67,16 @@ export const PatientForm: React.FC = () => {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     } else {
-      startNewSession();
+      const timer = setTimeout(() => {
+        startNewSession();
+        setCountdown(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [countdown, startNewSession]);
 
   return (
     <div className="relative mx-auto max-w-3xl space-y-6 text-gray-900">
-      {/* Success Countdown Overlay */}
       <AnimatePresence>
         {countdown !== null && (
           <motion.div
