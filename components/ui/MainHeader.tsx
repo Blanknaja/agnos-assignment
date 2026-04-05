@@ -94,14 +94,14 @@ export const MainHeader: React.FC = () => {
                   <MenuLink
                     href="/"
                     icon={<Home className="w-5 h-5" />}
-                    label="Home Gateway"
+                    label="Home"
                     active={isHome}
                     onClick={toggleMenu}
                   />
                   <MenuLink
                     href="/patient"
                     icon={<UserCircle className="w-5 h-5" />}
-                    label="Patient Portal"
+                    label="Patient Form"
                     active={isPatient}
                     onClick={toggleMenu}
                     target="_blank"
@@ -109,7 +109,7 @@ export const MainHeader: React.FC = () => {
                   <MenuLink
                     href="/staff-view"
                     icon={<LayoutDashboard className="w-5 h-5" />}
-                    label="Clinical Dashboard"
+                    label="Staff Dashboard"
                     active={isStaff}
                     onClick={toggleMenu}
                     target="_blank"
@@ -136,7 +136,7 @@ export const MainHeader: React.FC = () => {
                 <div className="inline-flex items-center space-x-2 text-gray-300">
                   <Activity className="w-4 h-4" />
                   <span className="text-[10px] font-black uppercase tracking-widest">
-                    Agnos Cloud Engine
+                    Agnos Health
                   </span>
                 </div>
               </div>

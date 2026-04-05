@@ -1,9 +1,35 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { PatientForm } from "@/components/ui/PatientForm";
+import { usePatient } from "@/contexts/PatientContext";
 import { Activity } from "lucide-react";
 
-export default function PatientClient() {
+interface PatientClientWrapperProps {
+  sessionId: string | undefined;
+}
+
+export default function PatientClientWrapper({
+  sessionId,
+}: PatientClientWrapperProps) {
+  const router = useRouter();
+  const { syncSession } = usePatient();
+  const lastSyncedId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) {
+      const newSid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
+      router.replace(`/patient?id=${newSid}`);
+      return;
+    }
+
+    if (sessionId === lastSyncedId.current) return;
+
+    lastSyncedId.current = sessionId;
+    syncSession(sessionId);
+  }, [sessionId, syncSession, router]);
+
   return (
     <div className="min-h-full bg-linear-to-b from-blue-50/50 via-white to-white text-gray-900 relative">
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none overflow-hidden">

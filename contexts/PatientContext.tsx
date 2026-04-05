@@ -10,7 +10,7 @@ import React, {
   Suspense,
   useMemo,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   PatientData,
   PatientRealTimeState,
@@ -21,7 +21,6 @@ import {
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_PATIENT_DATA, PATIENT_STATUS } from "@/const/patient";
 import { SUPABASE_CONFIG } from "@/const/supabase";
-import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { mapRecordToState } from "@/lib/utils";
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -30,6 +29,8 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const pathname = usePathname();
+  const router = useRouter();
+
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<string>("CONNECTING");
@@ -41,60 +42,106 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
     lastUpdated: new Date().toISOString(),
   });
 
+  // Tracks the active sessionId without creating stale closures in callbacks
+  const sessionIdRef = useRef<string>("");
+  useEffect(() => {
+    sessionIdRef.current = patientState.sessionId;
+  }, [patientState.sessionId]);
+
   const [dbPatients, setDbPatients] = useState<PatientRealTimeState[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const initializeSession = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    const urlParams = new URLSearchParams(window.location.search);
-    let sid = urlParams.get("id");
+  const getOwnedIds = useCallback((): string[] => {
+    if (typeof window === "undefined") return [];
+    return JSON.parse(localStorage.getItem("agnos_owned_sessions") || "[]");
+  }, []);
 
-    if (!sid && pathname === "/patient") {
-      sid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
-      sessionStorage.setItem("current_sid", sid);
-      window.history.replaceState(
-        null,
-        "",
-        `${window.location.pathname}?id=${sid}`,
-      );
-    }
+  const addOwnedId = useCallback(
+    (id: string) => {
+      const owned = getOwnedIds();
+      if (!owned.includes(id)) {
+        localStorage.setItem(
+          "agnos_owned_sessions",
+          JSON.stringify([...owned, id]),
+        );
+      }
+    },
+    [getOwnedIds],
+  );
 
-    if (sid) {
-      setPatientState((prev) => ({ ...prev, sessionId: sid as string }));
-      supabase
-        .from(SUPABASE_CONFIG.TABLE_NAME)
-        .select("*")
-        .eq("session_id", sid)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            setPatientState(mapRecordToState(data as SupabasePatientRow));
-          }
-        });
-    }
-  }, [pathname]);
+  /**
+   * SYNC SESSION
+   *
+   * This function is intentionally NOT called from inside this Provider.
+   * The Provider lives in the Root Layout which Next.js App Router does NOT
+   * re-render when only query params change on the same path (/patient?id=xxx
+   * → /patient?id=yyy). Hooks like useSearchParams() and popstate listeners
+   * inside the Provider would see the URL change, but React would never trigger
+   * a re-render of the Provider itself, making them useless.
+   *
+   * Instead, this function is exposed via Context and called by PatientClient
+   * (a page-level component that DOES re-render on every URL change).
+   */
+  const syncSession = useCallback(
+    async (sid: string) => {
+      const ownedIds = getOwnedIds();
 
-  useEffect(() => {
-    initializeSession();
-  }, [initializeSession]);
+      // Unknown ID → create a new session and redirect
+      if (!ownedIds.includes(sid)) {
+        const newSid = `p_${Math.random().toString(36).substr(2, 6)}_${Date.now().toString().slice(-4)}`;
+        addOwnedId(newSid);
+        sessionStorage.setItem("current_sid", newSid);
+        router.replace(`/patient?id=${newSid}`);
+        return;
+      }
 
-  useEffect(() => {
-    const sid = patientState.sessionId || "monitor";
+      // Same session already loaded → skip unnecessary fetch
+      if (sid === sessionIdRef.current) return;
 
-    // Initial load for dashboard
-    const fetchInitialData = async () => {
+      // New session → reset form and fetch from Supabase
+      setPatientState((prev) => ({
+        ...prev,
+        sessionId: sid,
+        patientData: DEFAULT_PATIENT_DATA,
+        status: PATIENT_STATUS.INACTIVE,
+      }));
+
       const { data, error: fetchErr } = await supabase
         .from(SUPABASE_CONFIG.TABLE_NAME)
         .select("*")
-        .order("last_updated", { ascending: false });
+        .eq("session_id", sid)
+        .maybeSingle();
 
-      if (fetchErr) console.error("Fetch Error:", fetchErr);
-      if (data) {
-        setDbPatients((data as SupabasePatientRow[]).map(mapRecordToState));
+      if (fetchErr) {
+        console.error("syncSession fetch error:", fetchErr);
+        return;
       }
+
+      if (data) {
+        setPatientState(mapRecordToState(data as SupabasePatientRow));
+      }
+    },
+    [getOwnedIds, addOwnedId, router],
+  );
+
+  /**
+   * REALTIME ENGINE
+   * Subscribes to Supabase Realtime for live updates and Presence tracking.
+   * Re-runs whenever the active sessionId or path changes.
+   */
+  useEffect(() => {
+    const sid = patientState.sessionId || "monitor";
+
+    const fetchDashboard = async () => {
+      const { data } = await supabase
+        .from(SUPABASE_CONFIG.TABLE_NAME)
+        .select("*")
+        .order("last_updated", { ascending: false });
+      if (data)
+        setDbPatients((data as SupabasePatientRow[]).map(mapRecordToState));
     };
-    fetchInitialData();
+    fetchDashboard();
 
     const channel = supabase.channel(SUPABASE_CONFIG.CHANNEL_NAME, {
       config: { presence: { key: sid } },
@@ -104,19 +151,9 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: SUPABASE_CONFIG.TABLE_NAME },
-        (payload: RealtimePostgresChangesPayload<SupabasePatientRow>) => {
-          if (payload.eventType === "DELETE") {
-            const deletedId = (payload.old as Partial<SupabasePatientRow>)
-              .session_id;
-            setDbPatients((prev) =>
-              prev.filter((p) => p.sessionId !== deletedId),
-            );
-            return;
-          }
-
+        (payload) => {
           const newData = payload.new as SupabasePatientRow;
           if (!newData?.session_id) return;
-
           const mapped = mapRecordToState(newData);
           setDbPatients((prev) => {
             const exists = prev.some((p) => p.sessionId === mapped.sessionId);
@@ -132,7 +169,6 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
 
     channel.subscribe(async (status) => {
       setConnectionStatus(status);
-
       if (
         status === "SUBSCRIBED" &&
         pathname === "/patient" &&
@@ -149,25 +185,21 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
 
   const syncToSupabase = useCallback(async (state: PatientRealTimeState) => {
     if (!state.sessionId) return;
-
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
       try {
-        const { error: syncErr } = await supabase
-          .from(SUPABASE_CONFIG.TABLE_NAME)
-          .upsert(
-            {
-              session_id: state.sessionId,
-              patient_data: state.patientData,
-              status: state.status,
-              last_updated: new Date().toISOString(),
-            },
-            { onConflict: "session_id" },
-          );
-        if (syncErr) throw syncErr;
+        await supabase.from(SUPABASE_CONFIG.TABLE_NAME).upsert(
+          {
+            session_id: state.sessionId,
+            patient_data: state.patientData,
+            status: state.status,
+            last_updated: new Date().toISOString(),
+          },
+          { onConflict: "session_id" },
+        );
         setError(null);
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = err instanceof Error ? err.message : "Unknown error";
         setError(`Sync error: ${message}`);
       }
     }, 200);
@@ -221,9 +253,9 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
   const startNewSession = useCallback(() => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("current_sid");
-      window.location.href = "/patient";
+      router.push("/patient");
     }
-  }, []);
+  }, [router]);
 
   const finalPatients = useMemo(() => {
     return dbPatients.map((p) => ({
@@ -241,6 +273,7 @@ const PatientProviderInternal: React.FC<{ children: React.ReactNode }> = ({
         updateStatus,
         submitPatientData,
         startNewSession,
+        syncSession,
         error,
         connectionStatus,
       }}
@@ -257,7 +290,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({
     <Suspense
       fallback={
         <div className="flex items-center justify-center h-screen bg-white text-blue-600 font-bold">
-          Connecting...
+          Syncing...
         </div>
       }
     >
