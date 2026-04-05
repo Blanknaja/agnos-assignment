@@ -1,6 +1,7 @@
 # Agnos Assignment — Patient Real-Time Registration System
 
-![App Preview](./public/image/readme/index-page-desktop.png)
+![App Preview Desktop](./public/image/readme/index-page-desktop.png)
+![App Preview Mobile](./public/image/readme/index-page-mobile.png)
 
 ---
 
